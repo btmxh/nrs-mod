@@ -1,5 +1,5 @@
-import { Album, Artist, Service, Track, cached } from "./common.ts";
-import { buildURL, redirect } from "../lib.ts";
+import { Album, Artist, Service, Track } from "./common.ts";
+import { buildURL, fetchLog, redirect, cached } from "../lib.ts";
 import { Duration } from "../../deps.ts";
 
 export interface YoutubeURL {
@@ -22,7 +22,7 @@ async function fetchCached(url: string): Promise<any> {
     url,
     async () =>
       await (
-        await fetch(url, {
+        await fetchLog(url, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -101,7 +101,6 @@ async function load(
         id: url.id,
       })
     );
-    console.debug(response);
     const snippet = response.items?.[0].snippet;
 
     const cachedTracks: [Track, string | undefined][] = [];
@@ -118,13 +117,13 @@ async function load(
               "https://youtube.googleapis.com/youtube/v3/playlistItems",
               {
                 part: "snippet,contentDetails",
-                id: url.id,
+                playlistId: url.id,
                 maxResults: "50",
                 pageToken: prevPageToken,
               }
             )
           );
-          if (response.items === undefined) {
+          if (response.items === undefined || response.items.length === 0) {
             return undefined;
           }
           prevPageToken = response.nextPageToken;
@@ -149,7 +148,7 @@ async function load(
           if (videoId !== undefined) {
             const response = await fetchCached(
               buildURL("https://youtube.googleapis.com/youtube/v3/videos", {
-                part: "contentDetails",
+                part: "snippet,contentDetails",
                 id: videoId,
               })
             );
@@ -167,7 +166,7 @@ async function load(
   } else if (url.type === "user") {
     const response = await fetchCached(
       buildURL("https://youtube.googleapis.com/youtube/v3/channels", {
-        part: "snippet",
+        part: "snippet,contentDetails",
         id: url.id,
       })
     );
@@ -180,7 +179,7 @@ async function load(
   } else if (url.type === "user-new") {
     const response = await fetchCached(
       buildURL("https://youtube.googleapis.com/youtube/v3/search", {
-        part: "snippet",
+        part: "snippet,contentDetails",
         q: url.id,
       })
     );

@@ -41,7 +41,7 @@ export async function gitVersionHash(): Promise<string> {
     args: ["rev-parse", "--short", "HEAD"],
   }).output();
   if (result.code === 0) {
-    return new TextDecoder().decode(result.stdout);
+    return new TextDecoder().decode(result.stdout).trim();
   } else {
     console.warn("'git rev-parse --short HEAD' failed, falling back to NOGIT");
     return "NOGIT";
@@ -119,9 +119,9 @@ export function pickTitle(titles: Record<string, string>): string | undefined {
     ["japanese", "jp", "ja", "nameja", "namekana"],
   ];
 
-  for (const key of Object.keys(titles)) {
-    for (const testKeys of keys) {
-      for (const testKey of testKeys) {
+  for (const testKeys of keys) {
+    for (const testKey of testKeys) {
+      for (const key in titles) {
         if (key.toLowerCase() === testKey) {
           return titles[key];
         }
@@ -147,7 +147,7 @@ export async function getSpotifyAuthenciation(): Promise<
 }
 
 export async function redirect(value: string): Promise<string> {
-  const response = await fetch(value);
+  const response = await fetchCachedFull(value);
   return response.url;
 }
 
@@ -162,4 +162,47 @@ export function buildURL(base: string, queryParams: Record<string, unknown>) {
     first = false;
   }
   return base;
+}
+
+export function fetchLog(
+  url: string | URL | Request,
+  init?: RequestInit
+): Promise<Response> {
+  console.log(`fetching ${url}`);
+  return fetch(url, init);
+}
+
+const cache = new Map<string, unknown>();
+interface ResponseLite {
+  text: string;
+  url: string;
+  redirected: boolean;
+}
+
+export function cached<T>(key: string, callback: () => T): T {
+  if (cache.has(key)) {
+    return cache.get(key) as T;
+  } else {
+    const value = callback();
+    cache.set(key, value);
+    return value;
+  }
+}
+
+export async function fetchCached(url: string, suffix = ""): Promise<string> {
+  return (await fetchCachedFull(url, suffix)).text;
+}
+
+export function fetchCachedFull(
+  url: string,
+  suffix = ""
+): Promise<ResponseLite> {
+  return cached(url + suffix, async () => {
+    const response = await fetchLog(url);
+    return {
+      text: await response.text(),
+      url: response.url,
+      redirected: response.redirected,
+    };
+  });
 }

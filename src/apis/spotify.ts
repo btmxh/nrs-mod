@@ -1,5 +1,5 @@
-import { buildURL, redirect } from "../lib.ts";
-import { Album, Artist, Service, Track, cached } from "./common.ts";
+import { buildURL, redirect, cached } from "../lib.ts";
+import { Album, Artist, Service, Track } from "./common.ts";
 import { Duration } from "../../deps.ts";
 
 export interface SpotifyURL {
@@ -49,8 +49,8 @@ async function load(
 ): Promise<Artist | Album | Track | undefined> {
   const id = url.id;
   if (url.type === "track") {
-    const response = JSON.parse(
-      await fetchCached(`https://api.spotify.com/v1/tracks/${id}`)
+    const response = await fetchCached(
+      `https://api.spotify.com/v1/tracks/${id}`
     );
 
     return {
@@ -82,7 +82,6 @@ async function load(
             })
           );
 
-          console.debug(response);
           for (let i = 0; i < response.items.length; i++) {
             const track = response.items[i];
             page.push({

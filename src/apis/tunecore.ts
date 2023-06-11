@@ -1,6 +1,6 @@
 import { HTMLDOMParser } from "../../deps.ts";
-import { redirect, xml } from "../lib.ts";
-import { Album, Artist, Service, Track, fetchCached } from "./common.ts";
+import { redirect, xml, fetchCached } from "../lib.ts";
+import { Album, Artist, Service, Track } from "./common.ts";
 
 export interface TunecoreURL {
   url: string;

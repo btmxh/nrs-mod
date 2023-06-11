@@ -1,4 +1,10 @@
-import { getEntryId, poke, runPrettier, xml } from "../lib.ts";
+import {
+  getEntryId,
+  gitVersionHash,
+  poke,
+  unixTimeString,
+  xml,
+} from "../lib.ts";
 
 import { VGMDB, vgmdbURLFromId } from "../apis/vgmdb.ts";
 import { TuneCore } from "../apis/tunecore.ts";
@@ -6,12 +12,16 @@ import { Spotify } from "../apis/spotify.ts";
 import { YouTube } from "../apis/yt.ts";
 import { Album, Artist, Service, Track } from "../apis/common.ts";
 
+const version = await gitVersionHash();
+const timestamp = await unixTimeString();
+const generatedByString = `music.ts ${version}-${timestamp}`;
 await poke("**/*.xml", async (document) => {
   const entries = xml
     .selectAll(document, `//entry[@title=""]`)
     .map((e) => e as Element);
   for (const entry of entries) {
     const id = getEntryId(entry);
+    console.log(id);
     if (entry.getAttribute("id")?.includes("$")) {
       const parent = xml.select(entry, "ancestor::entry[1]") as Element;
       if (parent === undefined) {
@@ -32,17 +42,14 @@ await poke("**/*.xml", async (document) => {
           update(entry, parentData, false);
         }
       }
-    } else {
-      const entryData = await getData(id, entry);
-      if (entryData !== undefined) {
-        update(entry, entryData);
-      }
     }
-    console.log(id);
+
+    const entryData = await getData(id, entry);
+    if (entryData !== undefined) {
+      update(entry, entryData);
+    }
   }
 });
-
-await runPrettier();
 
 async function getData(
   id: string,
@@ -112,13 +119,51 @@ async function getData(
         const aData = data as any;
         object.artists ??= aData.artists;
         object.discs ??= aData.discs;
-        object.getTrack ??= aData.getTrack;
+        object.getTrack = combineGetTrack(object.getTrack, aData.getTrack);
+        // object.getTrack ??= aData.getTrack;
         object.length ??= aData.length;
       }
     }
   }
 
   return object;
+}
+
+type GetTrack = (index: number) => Promise<Track | undefined>;
+function combineGetTrack(
+  getTrack1: GetTrack | undefined,
+  getTrack2: GetTrack | undefined
+) {
+  if (getTrack1 === undefined) {
+    return getTrack2;
+  }
+
+  if (getTrack2 === undefined) {
+    return getTrack1;
+  }
+
+  return async (index: number) => {
+    const [track1, track2] = await Promise.all([
+      getTrack1(index),
+      getTrack2(index),
+    ]);
+    if (track1 === undefined && track2 === undefined) {
+      return undefined;
+    }
+
+    const track: Track = {
+      type: "track",
+      title: track1?.title ?? track2?.title,
+      length: track1?.length ?? track2?.length,
+      artists: track1?.artists ?? track2?.artists,
+      references: ([] as [string, string][]).concat(
+        track1?.references ?? [],
+        track2?.references ?? []
+      ),
+    };
+
+    return track;
+  };
 }
 
 function update(
@@ -173,6 +218,7 @@ function update(
       const url = entry.ownerDocument.createElement("url");
       url.setAttribute("name", name);
       url.setAttribute("src", src);
+      url.setAttribute("generatedBy", generatedByString);
       urls.appendChild(url);
     }
   }

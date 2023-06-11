@@ -5,6 +5,7 @@ import {
   runPrettier,
   unixTimeString,
   xml,
+fetchLog,
 } from "../lib.ts";
 
 const version = await gitVersionHash();
@@ -68,7 +69,7 @@ async function fetchEntryTitle(
     console.warn(`non-MAL anime are not supported: ${id}`);
     return undefined;
   }
-  const response = await fetch(`https://api.jikan.moe/v4/anime/${id}`);
+  const response = await fetchLog(`https://api.jikan.moe/v4/anime/${id}`);
   const json = await response.json();
   // deno-lint-ignore no-explicit-any
   return json.titles.filter((title: any) =>
@@ -99,7 +100,7 @@ async function fetchAnimeSources(id: string): Promise<AnimeSource | undefined> {
     return undefined;
   }
 
-  const response = await fetch(
+  const response = await fetchLog(
     `https://relations.yuna.moe/api/v2/ids?source=${source}&id=${tokens[2]}`
   );
 

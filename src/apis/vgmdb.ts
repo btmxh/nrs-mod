@@ -2,8 +2,8 @@
 // like: https://vgmdb.net/album/109271?trackindex=4 => Akogare Future Sign (in Re:STAGE! THE BEST)
 
 import { Duration } from "../../deps.ts";
-import { pickTitle } from "../lib.ts";
-import { Album, Artist, Disc, Service, Track, fetchCached } from "./common.ts";
+import { pickTitle, fetchCached } from "../lib.ts";
+import { Album, Artist, Disc, Service, Track } from "./common.ts";
 
 export interface VGMDBURL {
   url: string;
@@ -28,19 +28,25 @@ async function load(
   if (url.url.includes("album")) {
     // deno-lint-ignore no-explicit-any
     const tracks = response.discs.flatMap((disc: any) => disc.tracks);
+    const storeRefs = (response.stores ?? []).map((store: any) => {
+      return [
+        store.name
+          .toLowerCase()
+          .replaceAll(/[\(\)]/g, "")
+          .replaceAll(/\s+/g, "-"),
+        store.link,
+      ] as [string, string];
+    });
+    const websiteRefs = Object.entries(response.websites ?? {}).flatMap(
+      ([key, value]) => {
+        // deno-lint-ignore no-explicit-any
+        return (value as any).map((ref: any) => [key.toLowerCase(), ref.link]);
+      }
+    );
     const album: Album = {
       type: "album",
       title: response.name,
-      // deno-lint-ignore no-explicit-any
-      references: (response.stores ?? []).map((store: any) => {
-        return [
-          store.name
-            .toLowerCase()
-            .replaceAll(/[\(\)]/g, "")
-            .replaceAll(/\s+/g, "-"),
-          store.link,
-        ] as [string, string];
-      }),
+      references: [...storeRefs, ...websiteRefs],
       // deno-lint-ignore no-explicit-any
       discs: response.discs.map((disc: any) => {
         const obj: Disc = {
@@ -71,7 +77,10 @@ async function load(
         return Promise.resolve({
           type: "track",
           title: pickName(track.names),
-          length: parseDuration(track.track_length),
+          length:
+            track.track_length === "Unknown"
+              ? undefined
+              : parseDuration(track.track_length),
           references: [],
         });
       },
@@ -112,7 +121,7 @@ export function vgmdbURLFromId(id: string): string {
   if (tokens[2] === "AL") {
     let url = `https://vgmdb.net/album/${tokens[3]}`;
     if (tokens.length === 5) {
-      url += `?trackindex=${tokens[4]}`;
+      url += `?trackindex=${parseInt(tokens[4]) - 1}`;
     }
     return url;
   } else if (tokens[2] === "AR") {

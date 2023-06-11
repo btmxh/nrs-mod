@@ -1,4 +1,4 @@
-import { gitVersionHash, poke, sleep, unixTimeString, xml } from "../lib.ts";
+import { fetchLog, gitVersionHash, poke, sleep, unixTimeString, xml } from "../lib.ts";
 
 const version = await gitVersionHash();
 const timestamp = await unixTimeString();
@@ -33,7 +33,7 @@ await poke("**/*.xml", async (doc) => {
 
 async function transformBestGirlName(name: string): Promise<string> {
   const encodedName = encodeURIComponent(name);
-  const result = await fetch(
+  const result = await fetchLog(
     `https://api.jikan.moe/v4/characters?q=${encodedName}&limit=1`
   );
   const json = await result.json();

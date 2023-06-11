@@ -1,4 +1,5 @@
 import { Duration } from "../../deps.ts";
+import { fetchLog } from "../lib.ts";
 
 export interface Album {
   type: "album";
@@ -32,22 +33,4 @@ export interface Artist {
 export interface Service<URL> {
   parseURL(url: string): Promise<URL | undefined>;
   load(url: URL): Promise<Artist | Album | Track | undefined>;
-}
-
-const cache = new Map<string, unknown>();
-export function cached<T>(key: string, callback: () => T): T {
-  if (cache.has(key)) {
-    return cache.get(key) as T;
-  } else {
-    const value = callback();
-    cache.set(key, value);
-    return value;
-  }
-}
-
-export function fetchCached(url: string, suffix = ""): Promise<string> {
-  return cached(url + suffix, async () => {
-    const response = await fetch(url);
-    return await response.text();
-  });
 }
